@@ -1,16 +1,9 @@
----
-name: cw-test-generator
-description: >
-  AI-assisted unit test generation for C# projects.
-  Invoke this skill when asked to generate, create, or scaffold unit tests for C# source files.
-  Analyzes the source class and generates NUnit test classes following project conventions.
----
-
 # AI-Assisted Unit Test Generator Skill
 
 ## When to Activate
 
 Activate this skill when the user asks to:
+
 - Generate unit tests for a C# class
 - Create test scaffolding for a source file
 - Write test methods for specific functionality
@@ -23,6 +16,7 @@ When asked to generate tests for a C# source file, follow these steps **exactly*
 ### Step 1: Analyze the Source Class
 
 Read the source file and extract:
+
 1. **Class name** and **namespace**
 2. **All public methods** — name, parameters, return type
 3. **All public properties** — name, type, whether they have setters
@@ -34,11 +28,11 @@ Read the source file and extract:
 
 Apply these rules to decide the test class structure:
 
-| Source Class Type | Test Base Class | Notes |
-|---|---|---|
-| Static utility class | No base class needed, use `[TestFixture]` | Direct method calls |
-| Regular class with no dependencies | No base class needed, use `[TestFixture]` | Create instance in test |
-| Class with constructor dependencies | Use `[TestFixture]` with `[SetUp]` | Create mocks/stubs for dependencies |
+| Source Class Type                   | Test Base Class                             | Notes                               |
+| ----------------------------------- | ------------------------------------------- | ----------------------------------- |
+| Static utility class                | No base class needed, use `[TestFixture]` | Direct method calls                 |
+| Regular class with no dependencies  | No base class needed, use `[TestFixture]` | Create instance in test             |
+| Class with constructor dependencies | Use `[TestFixture]` with `[SetUp]`      | Create mocks/stubs for dependencies |
 
 ### Step 3: Generate Test Methods
 
@@ -51,20 +45,24 @@ Test[MethodName]_When[Condition]_Then[ExpectedResult]
 Generate tests for these categories:
 
 #### A. Happy Path (Normal Cases)
+
 - Method works correctly with valid inputs
 - Expected return values are verified
 
 #### B. Edge Cases
+
 - Empty strings, zero values, boundary values
 - Maximum and minimum values
 - Collections with 0, 1, or many items
 
 #### C. Error Cases
+
 - Null parameters → expect `ArgumentNullException`
 - Invalid ranges → expect `ArgumentOutOfRangeException`
 - Invalid format → expect appropriate exception or false return
 
 #### D. Special Cases
+
 - Round-trip conversions (encode → decode should equal original)
 - Idempotent operations (applying twice gives same result)
 
@@ -73,6 +71,7 @@ Generate tests for these categories:
 **CRITICAL** — All generated tests MUST follow these rules:
 
 1. **Test method names MUST start with "Test"**
+
    ```csharp
    // ✅ CORRECT
    public void TestCalculateWeight_WhenPositiveInput_ThenReturnsCorrectValue()
@@ -80,8 +79,8 @@ Generate tests for these categories:
    // ❌ WRONG — missing "Test" prefix
    public void CalculateWeight_WhenPositiveInput_ThenReturnsCorrectValue()
    ```
-
 2. **Use NUnit 4 assertions with the constraint model**
+
    ```csharp
    // ✅ CORRECT — NUnit 4 constraint model
    Assert.That(result, Is.EqualTo(expected));
@@ -93,8 +92,8 @@ Generate tests for these categories:
    Assert.AreEqual(expected, result);
    Assert.IsTrue(result);
    ```
-
 3. **Use `Assert.Throws<T>` for exception tests**
+
    ```csharp
    // ✅ CORRECT
    Assert.Throws<ArgumentNullException>(() => MyMethod(null));
@@ -103,8 +102,8 @@ Generate tests for these categories:
    var ex = Assert.Throws<ArgumentException>(() => MyMethod("bad"));
    Assert.That(ex.Message, Does.Contain("invalid"));
    ```
-
 4. **Each test method tests ONE behavior**
+
    ```csharp
    // ✅ CORRECT — one behavior per test
    [Test]
@@ -122,20 +121,20 @@ Generate tests for these categories:
        Assert.That(Converter.Convert(-1), Throws...);  // mixing concerns
    }
    ```
-
 5. **Test class naming**: `[SourceClassName]Test`
+
    ```csharp
    // Source: WeightConverter.cs → Test: WeightConverterTest.cs
    // Source: StringHelper.cs   → Test: StringHelperTest.cs
    ```
-
 6. **Test file location**: Mirror the source file structure in the test project
+
    ```
    src/DemoLib/WeightConverter.cs
    → src/DemoLib.Tests/WeightConverterTest.cs
    ```
-
 7. **Use Arrange-Act-Assert pattern with comments when helpful**
+
    ```csharp
    [Test]
    public void TestCalculate_WhenValidDimensions_ThenReturnsVolumetricWeight()
@@ -154,6 +153,7 @@ Generate tests for these categories:
 ### Step 5: Output the Complete Test File
 
 Generate a complete, compilable test file with:
+
 - Correct `using` statements
 - `[TestFixture]` attribute on the class
 - `[Test]` attribute on each test method
@@ -218,5 +218,6 @@ public class WeightConverterTest
 ## Reference Files
 
 See the `references/` directory for:
+
 - `test-patterns.md` — Common test patterns and when to use them
 - `assertion-reference.md` — Complete assertion syntax reference
