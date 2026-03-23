@@ -155,15 +155,23 @@ jobs:
       - name: Comment on PR
         if: steps.detect-changes.outputs.files != ''
         uses: actions/github-script@v7
+        env:
+          TOTAL: ${{ steps.check-tests.outputs.total }}
+          MISSING_COUNT: ${{ steps.check-tests.outputs.missing_count }}
+          COVERED_COUNT: ${{ steps.check-tests.outputs.covered_count }}
+          RATE: ${{ steps.check-tests.outputs.rate }}
+          MISSING: ${{ steps.check-tests.outputs.missing }}
+          COVERED: ${{ steps.check-tests.outputs.covered }}
+          TEST_EXIT_CODE: ${{ steps.run-tests.outputs.exit_code }}
         with:
           script: |
-            const total = '${{ steps.check-tests.outputs.total }}';
-            const missingCount = '${{ steps.check-tests.outputs.missing_count }}';
-            const coveredCount = '${{ steps.check-tests.outputs.covered_count }}';
-            const rate = '${{ steps.check-tests.outputs.rate }}';
-            const missing = `${{ steps.check-tests.outputs.missing }}`;
-            const covered = `${{ steps.check-tests.outputs.covered }}`;
-            const testExitCode = '${{ steps.run-tests.outputs.exit_code }}';
+            const total = process.env.TOTAL;
+            const missingCount = process.env.MISSING_COUNT;
+            const coveredCount = process.env.COVERED_COUNT;
+            const rate = process.env.RATE;
+            const missing = process.env.MISSING;
+            const covered = process.env.COVERED;
+            const testExitCode = process.env.TEST_EXIT_CODE;
 
             // 选择状态 Emoji
             let statusEmoji = '✅';
