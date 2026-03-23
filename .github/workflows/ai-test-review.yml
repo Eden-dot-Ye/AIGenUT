@@ -121,9 +121,9 @@ jobs:
           done <<< "$CHANGED_FILES"
 
           # 计算统计
-          TOTAL=$(echo "$CHANGED_FILES" | grep -c '\.cs$' || echo "0")
-          MISSING_COUNT=$(echo -e "$MISSING_TESTS" | grep -c '❌' || echo "0")
-          COVERED_COUNT=$(echo -e "$COVERED_TESTS" | grep -c '✅' || echo "0")
+          TOTAL=$(echo "$CHANGED_FILES" | grep -c '\.cs$' || true)
+          MISSING_COUNT=$(echo -e "$MISSING_TESTS" | grep -c '❌' || true)
+          COVERED_COUNT=$(echo -e "$COVERED_TESTS" | grep -c '✅' || true)
 
           if [ "$TOTAL" -gt 0 ]; then
             RATE=$((COVERED_COUNT * 100 / TOTAL))
