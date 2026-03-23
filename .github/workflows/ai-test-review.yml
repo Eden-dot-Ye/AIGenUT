@@ -1,0 +1,251 @@
+name: AI Test Coverage Review
+
+# ============================================================
+# 触发条件：当 Pull Request 被创建或更新时自动运行
+# ============================================================
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'src/DemoLib/**/*.cs'              # 只在源代码变更时触发
+      - '!src/DemoLib.Tests/**'            # 排除测试项目的变更
+
+# ============================================================
+# 权限：允许 Bot 在 PR 上发表评论
+# ============================================================
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  check-test-coverage:
+    name: Check Unit Test Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      # ──────────────────────────────────────────────────────
+      # 1. 检出代码
+      # ──────────────────────────────────────────────────────
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # 获取完整历史以便对比
+
+      # ──────────────────────────────────────────────────────
+      # 2. 安装 .NET SDK
+      # ──────────────────────────────────────────────────────
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # ──────────────────────────────────────────────────────
+      # 3. 编译项目（确认代码可以编译）
+      # ──────────────────────────────────────────────────────
+      - name: Build
+        run: dotnet build src/DemoLib.Tests/DemoLib.Tests.csproj --configuration Release
+
+      # ──────────────────────────────────────────────────────
+      # 4. 运行已有的单元测试
+      # ──────────────────────────────────────────────────────
+      - name: Run existing tests
+        id: run-tests
+        run: |
+          set +e
+          dotnet test src/DemoLib.Tests/DemoLib.Tests.csproj \
+            --configuration Release \
+            --no-build \
+            --logger "trx;LogFileName=test-results.trx" \
+            --results-directory ./test-results \
+            2>&1 | tee test-output.txt
+          TEST_EXIT_CODE=${PIPESTATUS[0]}
+          echo "exit_code=$TEST_EXIT_CODE" >> $GITHUB_OUTPUT
+          set -e
+
+      # ──────────────────────────────────────────────────────
+      # 5. 检测 PR 中变更了哪些源文件
+      # ──────────────────────────────────────────────────────
+      - name: Detect changed source files
+        id: detect-changes
+        run: |
+          # 获取 PR 中变更的 .cs 源文件（排除测试文件）
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD \
+            | grep '^src/DemoLib/.*\.cs$' \
+            | grep -v '\.Tests/' \
+            | grep -v 'Test\.cs$' \
+            || true)
+
+          echo "Changed source files:"
+          echo "$CHANGED_FILES"
+
+          # 保存到输出
+          {
+            echo "files<<EOF"
+            echo "$CHANGED_FILES"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+      # ──────────────────────────────────────────────────────
+      # 6. 检查每个变更的源文件是否有对应的测试文件
+      # ──────────────────────────────────────────────────────
+      - name: Check for missing tests
+        id: check-tests
+        run: |
+          MISSING_TESTS=""
+          COVERED_TESTS=""
+          CHANGED_FILES="${{ steps.detect-changes.outputs.files }}"
+
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "No source files changed."
+            echo "missing=" >> $GITHUB_OUTPUT
+            echo "covered=" >> $GITHUB_OUTPUT
+            echo "summary=No source files changed in this PR." >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+
+            # 获取不带路径的文件名 (e.g., "StringHelper.cs")
+            FILENAME=$(basename "$file" .cs)
+
+            # 构造期望的测试文件名 (e.g., "StringHelperTest.cs")
+            EXPECTED_TEST="${FILENAME}Test.cs"
+
+            # 在测试项目中搜索
+            if find src/DemoLib.Tests -name "$EXPECTED_TEST" 2>/dev/null | grep -q .; then
+              COVERED_TESTS="$COVERED_TESTS\n- ✅ \`$file\` → 找到测试文件 \`$EXPECTED_TEST\`"
+            else
+              MISSING_TESTS="$MISSING_TESTS\n- ❌ \`$file\` → **缺少**测试文件 \`$EXPECTED_TEST\`"
+            fi
+          done <<< "$CHANGED_FILES"
+
+          # 计算统计
+          TOTAL=$(echo "$CHANGED_FILES" | grep -c '\.cs$' || echo "0")
+          MISSING_COUNT=$(echo -e "$MISSING_TESTS" | grep -c '❌' || echo "0")
+          COVERED_COUNT=$(echo -e "$COVERED_TESTS" | grep -c '✅' || echo "0")
+
+          if [ "$TOTAL" -gt 0 ]; then
+            RATE=$((COVERED_COUNT * 100 / TOTAL))
+          else
+            RATE=100
+          fi
+
+          # 保存输出
+          {
+            echo "missing<<EOF"
+            echo -e "$MISSING_TESTS"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+          {
+            echo "covered<<EOF"
+            echo -e "$COVERED_TESTS"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+          echo "missing_count=$MISSING_COUNT" >> $GITHUB_OUTPUT
+          echo "covered_count=$COVERED_COUNT" >> $GITHUB_OUTPUT
+          echo "rate=$RATE" >> $GITHUB_OUTPUT
+
+      # ──────────────────────────────────────────────────────
+      # 7. 生成 PR 评论报告
+      # ──────────────────────────────────────────────────────
+      - name: Comment on PR
+        if: steps.detect-changes.outputs.files != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const total = '${{ steps.check-tests.outputs.total }}';
+            const missingCount = '${{ steps.check-tests.outputs.missing_count }}';
+            const coveredCount = '${{ steps.check-tests.outputs.covered_count }}';
+            const rate = '${{ steps.check-tests.outputs.rate }}';
+            const missing = `${{ steps.check-tests.outputs.missing }}`;
+            const covered = `${{ steps.check-tests.outputs.covered }}`;
+            const testExitCode = '${{ steps.run-tests.outputs.exit_code }}';
+
+            // 选择状态 Emoji
+            let statusEmoji = '✅';
+            let statusText = '所有变更的源文件都有对应的测试！';
+            if (missingCount > 0) {
+              statusEmoji = '⚠️';
+              statusText = `有 ${missingCount} 个源文件缺少对应的单元测试。`;
+            }
+
+            // 测试运行结果
+            let testStatus = testExitCode === '0'
+              ? '✅ 所有测试通过'
+              : '❌ 部分测试失败，请检查测试结果';
+
+            const body = `## 🧪 AI 测试覆盖率检查报告
+
+            ### 📊 总览
+            | 指标 | 值 |
+            |------|------|
+            | 变更的源文件数 | ${total} |
+            | 已有测试的文件 | ${coveredCount} |
+            | 缺少测试的文件 | ${missingCount} |
+            | 测试覆盖率 | **${rate}%** |
+            | 测试运行结果 | ${testStatus} |
+
+            ### ${statusEmoji} 状态: ${statusText}
+
+            ### 📋 详细检查结果
+
+            ${covered || '_(无)_'}
+
+            ${missing || '_(无)_'}
+
+            ---
+
+            ${missingCount > 0 ? `### 💡 建议
+
+            对于缺少测试的文件，你可以：
+            1. 在 Copilot Chat 中使用 \`cw-test-generator\` skill 自动生成测试
+            2. 手动创建对应的测试文件
+
+            **操作方法：** 打开 Copilot Chat，输入：
+            \`\`\`
+            请使用 cw-test-generator skill 为 [文件名].cs 生成单元测试
+            \`\`\`
+            ` : '🎉 太棒了！所有源文件都有测试覆盖。'}
+
+            ---
+            > 🤖 此报告由 **AI Test Coverage Review** 自动生成
+            `.replace(/            /g, '');
+
+            // 查找已有的 bot 评论并更新（避免重复评论）
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(c =>
+              c.body.includes('AI 测试覆盖率检查报告')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body,
+              });
+            }
+
+      # ──────────────────────────────────────────────────────
+      # 8. 如果测试覆盖率不足，设置检查状态为警告
+      # ──────────────────────────────────────────────────────
+      - name: Check coverage threshold
+        if: steps.check-tests.outputs.rate != '' && steps.check-tests.outputs.rate < 100
+        run: |
+          echo "::warning::测试覆盖率为 ${{ steps.check-tests.outputs.rate }}%，有 ${{ steps.check-tests.outputs.missing_count }} 个文件缺少单元测试。"
