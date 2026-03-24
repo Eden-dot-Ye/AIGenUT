@@ -132,8 +132,11 @@ public partial class CodeAnalysisService
             var methodName = match.Groups["methodName"].Value;
             var isStatic = match.Groups["static"].Success;
 
-            // Skip constructors, properties, and common non-method patterns
-            if (string.IsNullOrEmpty(returnType) || returnType == "class" || returnType == "interface" || returnType == "enum")
+            // Skip constructors, properties, and non-method declarations
+            if (string.IsNullOrEmpty(returnType)
+                || returnType == "class" || returnType == "interface" || returnType == "enum"
+                || returnType.Contains("class") || returnType.Contains("interface")
+                || methodName == ExtractClassName(content))
                 continue;
 
             methods.Add(new MethodInfo
@@ -173,7 +176,6 @@ public partial class CodeAnalysisService
                 // Match test methods by naming convention: Test{MethodName}_When...
                 var matchingTest = allTestMethods.FirstOrDefault(t =>
                     t.StartsWith($"Test{method.Name}_", StringComparison.Ordinal) ||
-                    t.StartsWith($"Test{method.Name}(", StringComparison.Ordinal) ||
                     t.Equals($"Test{method.Name}", StringComparison.Ordinal));
 
                 if (matchingTest != null)
@@ -221,7 +223,8 @@ public partial class CodeAnalysisService
             TotalTestLines = testFiles.Sum(tf =>
             {
                 try { return File.ReadAllLines(tf.Path).Length; }
-                catch { return 0; }
+                catch (IOException) { return 0; }
+                catch (UnauthorizedAccessException) { return 0; }
             }),
             CoveragePercent = coverage.CoveragePercent
         };
