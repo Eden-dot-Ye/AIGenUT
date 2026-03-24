@@ -2,7 +2,8 @@
 
 A comprehensive demonstration project showcasing AI-powered approaches to improve unit test development, featuring a modern web dashboard for visualization and interactive demos.
 
-![Dashboard Screenshot](https://github.com/user-attachments/assets/cd595843-292d-44e5-a80e-88cf3ba63dc5)
+## Demo
+
 
 ## Features
 
@@ -72,25 +73,21 @@ dotnet run --project src/AIGenUT.Web
 
 The interactive dashboard provides:
 
-| Tab | Description |
-|-----|-------------|
-| **Dashboard** | Overview metrics, coverage donut chart, methods per class bar chart, LOC distribution |
-| **Coverage** | Method-level coverage map with green/red indicators per class |
-| **Playground** | Interactive Expression Evaluator, Markdown Converter, and CSV Parser |
-| **Source** | File browser with method details and test mapping |
-| **Tests** | Complete test suite overview with 216 tests across 9 test classes |
+| Tab                  | Description                                                                           |
+| -------------------- | ------------------------------------------------------------------------------------- |
+| **Dashboard**  | Overview metrics, coverage donut chart, methods per class bar chart, LOC distribution |
+| **Coverage**   | Method-level coverage map with green/red indicators per class                         |
+| **Playground** | Interactive Expression Evaluator, Markdown Converter, and CSV Parser                  |
+| **Source**     | File browser with method details and test mapping                                     |
+| **Tests**      | Complete test suite overview with 216 tests across 9 test classes                     |
 
 ## Tech Stack
 
-| Component | Technology |
-|-----------|-----------|
-| Language | C# 12 / .NET 8 |
-| Testing | NUnit 4.3.2 (constraint-based assertions) |
-| Web Backend | ASP.NET Core Minimal API |
-| Frontend | Tailwind CSS + Alpine.js + Chart.js |
-| CI/CD | GitHub Actions |
-| AI | GitHub Copilot Skill |
-
-## How It Works
-
-See the [Setup Guide](SETUP-GUIDE.md) for complete instructions on the demo workflow.
+| Component   | Technology                                |
+| ----------- | ----------------------------------------- |
+| Language    | C# 12 / .NET 8                            |
+| Testing     | NUnit 4.3.2 (constraint-based assertions) |
+| Web Backend | ASP.NET Core Minimal API                  |
+| Frontend    | Tailwind CSS + Alpine.js + Chart.js       |
+| CI/CD       | GitHub Actions                            |
+| AI          | GitHub Copilot Skill                      |
