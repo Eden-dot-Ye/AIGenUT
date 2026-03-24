@@ -72,23 +72,17 @@ app.MapPost("/api/csv/parse", (CsvParseRequest req) =>
 {
     try
     {
-        var parser = new CsvParser();
+        var parser = new CsvParser(hasHeader: req.HasHeader);
         var doc = parser.Parse(req.Csv);
         var result = new
         {
             headers = doc.Headers,
             rowCount = doc.RowCount,
-            rows = Enumerable.Range(0, doc.RowCount).Select(i =>
+            columnCount = doc.ColumnCount,
+            rows = doc.Rows.Select(row => new
             {
-                var row = doc.Rows[i];
-                if (doc.Headers.Length > 0)
-                {
-                    var dict = new Dictionary<string, string>();
-                    for (int c = 0; c < doc.Headers.Length; c++)
-                        dict[doc.Headers[c]] = row[c];
-                    return (object)dict;
-                }
-                return Enumerable.Range(0, row.Fields.Length).Select(c => row[c]).ToList();
+                rowIndex = row.RowIndex,
+                fields = row.Fields
             }).ToList()
         };
         return Results.Json(result, jsonOptions);

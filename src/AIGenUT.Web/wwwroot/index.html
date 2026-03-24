@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIGenUT - AI Unit Test Generation Dashboard</title>
+    <link rel="stylesheet" href="/css/tailwind.css">
+    <link rel="stylesheet" href="/css/app.css">
+    <script src="/js/chart.umd.js"></script>
+    <script defer src="/js/alpine.min.js"></script>
+</head>
+<body class="h-full bg-gray-50 font-sans" x-data="dashboard()" x-init="init()">
+
+<!-- Navigation -->
+<nav class="bg-white border-b border-gray-200 sticky top-0 z-50 backdrop-blur-lg bg-white/80">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-16">
+            <div class="flex items-center space-x-3">
+                <div class="w-9 h-9 bg-gradient-to-br from-brand-500 to-brand-700 rounded-xl flex items-center justify-center shadow-lg shadow-brand-500/25">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-gray-900">AIGenUT</h1>
+                    <p class="text-xs text-gray-500 -mt-0.5">AI Unit Test Generation</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-1">
+                <template x-for="tab in tabs" :key="tab.id">
+                    <button @click="activeTab = tab.id"
+                            :class="activeTab === tab.id ? 'bg-brand-50 text-brand-700 border-brand-200' : 'text-gray-600 hover:bg-gray-50 border-transparent'"
+                            class="px-4 py-2 rounded-lg text-sm font-medium transition-all border flex items-center space-x-2">
+                        <span x-html="tab.icon"></span>
+                        <span x-text="tab.name"></span>
+                    </button>
+                </template>
+            </div>
+            <div class="flex items-center space-x-3">
+                <span class="px-3 py-1 text-xs font-medium rounded-full" 
+                      :class="loading ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'">
+                    <span x-show="loading" class="inline-block animate-spin mr-1">⟳</span>
+                    <span x-text="loading ? 'Loading...' : '● Connected'"></span>
+                </span>
+                <button @click="refresh()" class="p-2 text-gray-400 hover:text-gray-600 transition-colors rounded-lg hover:bg-gray-100">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<!-- Main Content -->
+<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- Dashboard Tab -->
+    <div x-show="activeTab === 'dashboard'" x-transition>
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
+                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                    </div>
+                    <span class="text-xs font-medium text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">Source</span>
+                </div>
+                <p class="text-3xl font-bold text-gray-900" x-text="stats.totalSourceFiles || 0"></p>
+                <p class="text-sm text-gray-500 mt-1">Source Files</p>
+            </div>
+            <div class="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center">
+                        <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+                    </div>
+                    <span class="text-xs font-medium text-purple-600 bg-purple-50 px-2.5 py-1 rounded-full">Code</span>
+                </div>
+                <p class="text-3xl font-bold text-gray-900" x-text="stats.totalMethods || 0"></p>
+                <p class="text-sm text-gray-500 mt-1">Public Methods</p>
+            </div>
+            <div class="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center">
+                        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <span class="text-xs font-medium text-green-600 bg-green-50 px-2.5 py-1 rounded-full">Tests</span>
+                </div>
+                <p class="text-3xl font-bold text-gray-900" x-text="stats.totalTests || 0"></p>
+                <p class="text-sm text-gray-500 mt-1">Unit Tests</p>
+            </div>
+            <div class="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-12 h-12 rounded-xl flex items-center justify-center"
+                         :class="(stats.coveragePercent || 0) >= 80 ? 'bg-emerald-50' : (stats.coveragePercent || 0) >= 50 ? 'bg-yellow-50' : 'bg-red-50'">
+                        <svg class="w-6 h-6" :class="(stats.coveragePercent || 0) >= 80 ? 'text-emerald-600' : (stats.coveragePercent || 0) >= 50 ? 'text-yellow-600' : 'text-red-600'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                    </div>
+                    <span class="text-xs font-medium px-2.5 py-1 rounded-full"
+                          :class="(stats.coveragePercent || 0) >= 80 ? 'text-emerald-600 bg-emerald-50' : (stats.coveragePercent || 0) >= 50 ? 'text-yellow-600 bg-yellow-50' : 'text-red-600 bg-red-50'"
+                          x-text="((stats.coveragePercent || 0) >= 80 ? 'Great' : (stats.coveragePercent || 0) >= 50 ? 'Fair' : 'Low')">
+                    </span>
+                </div>
+                <p class="text-3xl font-bold text-gray-900"><span x-text="(stats.coveragePercent || 0).toFixed(1)"></span>%</p>
+                <p class="text-sm text-gray-500 mt-1">Test Coverage</p>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <!-- Coverage Donut Chart -->
+            <div class="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Test Coverage Overview</h3>
+                <div class="flex items-center justify-center">
+                    <div class="w-64 h-64">
+                        <canvas id="coverageChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <!-- Methods per Class Bar Chart -->
+            <div class="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Methods per Class</h3>
+                <div class="h-64">
+                    <canvas id="methodsChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Coverage by Class -->
+        <div class="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm mb-8">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Coverage by Class</h3>
+            <div class="h-80">
+                <canvas id="classCoverageChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Lines of Code Distribution -->
+        <div class="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+            <h3 class="text-lg font-semibold text-gray-900 mb-6">Lines of Code Distribution</h3>
+            <div class="space-y-4">
+                <template x-for="file in analysis.sourceFiles || []" :key="file.name">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-40 text-sm font-mono text-gray-700 truncate" x-text="file.className"></div>
+                        <div class="flex-1 bg-gray-100 rounded-full h-4 overflow-hidden">
+                            <div class="h-full rounded-full bg-gradient-to-r from-brand-400 to-brand-600 transition-all duration-1000"
+                                 :style="'width: ' + (file.lineCount / maxLines * 100) + '%'"></div>
+                        </div>
+                        <div class="w-16 text-sm text-gray-500 text-right" x-text="file.lineCount + ' loc'"></div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <!-- Coverage Tab -->
+    <div x-show="activeTab === 'coverage'" x-transition>
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">Method-Level Coverage Map</h3>
+                    <p class="text-sm text-gray-500 mt-0.5">Green = tested, Red = missing tests</p>
+                </div>
+                <div class="flex items-center space-x-4 text-sm">
+                    <span class="flex items-center space-x-1.5">
+                        <span class="w-3 h-3 bg-green-500 rounded-full"></span>
+                        <span class="text-gray-600">Tested (<span x-text="coverage.testedMethods || 0"></span>)</span>
+                    </span>
+                    <span class="flex items-center space-x-1.5">
+                        <span class="w-3 h-3 bg-red-500 rounded-full"></span>
+                        <span class="text-gray-600">Untested (<span x-text="coverage.untestedMethods || 0"></span>)</span>
+                    </span>
+                </div>
+            </div>
+            <div class="divide-y divide-gray-50">
+                <template x-for="file in analysis.sourceFiles || []" :key="file.name">
+                    <div class="px-6 py-4" x-data="{ open: true }">
+                        <button @click="open = !open" class="flex items-center justify-between w-full group">
+                            <div class="flex items-center space-x-3">
+                                <svg class="w-5 h-5 text-gray-400 transition-transform" :class="open && 'rotate-90'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                <span class="font-mono text-sm font-semibold text-gray-900" x-text="file.className"></span>
+                                <span class="text-xs text-gray-400 font-mono" x-text="file.name"></span>
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <div class="w-32 bg-gray-100 rounded-full h-2 overflow-hidden">
+                                    <div class="h-full rounded-full transition-all duration-500"
+                                         :class="getFileCoverage(file) === 100 ? 'bg-green-500' : getFileCoverage(file) >= 50 ? 'bg-yellow-500' : 'bg-red-500'"
+                                         :style="'width: ' + getFileCoverage(file) + '%'"></div>
+                                </div>
+                                <span class="text-sm font-medium min-w-[3.5rem] text-right"
+                                      :class="getFileCoverage(file) === 100 ? 'text-green-600' : getFileCoverage(file) >= 50 ? 'text-yellow-600' : 'text-red-600'"
+                                      x-text="getFileCoverage(file).toFixed(0) + '%'"></span>
+                            </div>
+                        </button>
+                        <div x-show="open" x-transition class="mt-3 ml-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                            <template x-for="(method, mi) in file.methods || []" :key="file.className + mi">
+                                <div class="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm"
+                                     :class="method.hasTest ? 'bg-green-50 border border-green-100' : 'bg-red-50 border border-red-100'">
+                                    <svg class="w-4 h-4 flex-shrink-0" :class="method.hasTest ? 'text-green-500' : 'text-red-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path x-show="method.hasTest" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                        <path x-show="!method.hasTest" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                    <span class="font-mono text-xs truncate" :class="method.hasTest ? 'text-green-700' : 'text-red-700'" x-text="method.name + '()'"></span>
+                                    <span x-show="method.isStatic" class="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded font-medium">static</span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <!-- Playground Tab -->
+    <div x-show="activeTab === 'playground'" x-transition>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Expression Evaluator -->
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+                    <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+                        <span>🧮</span>
+                        <span>Expression Evaluator</span>
+                    </h3>
+                    <p class="text-sm text-gray-500 mt-0.5">Test the ExpressionEvaluator class interactively</p>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Expression</label>
+                        <input type="text" x-model="evalExpression" @keyup.enter="evaluateExpression()"
+                               placeholder="e.g., sqrt(x^2 + y^2) * 2"
+                               class="w-full px-4 py-3 border border-gray-200 rounded-xl font-mono text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Variables (JSON)</label>
+                        <input type="text" x-model="evalVariables" @keyup.enter="evaluateExpression()"
+                               placeholder='e.g., {"x": 3, "y": 4}'
+                               class="w-full px-4 py-3 border border-gray-200 rounded-xl font-mono text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition">
+                    </div>
+                    <button @click="evaluateExpression()"
+                            class="w-full px-4 py-3 bg-gradient-to-r from-brand-500 to-brand-600 text-white rounded-xl font-medium text-sm hover:from-brand-600 hover:to-brand-700 transition shadow-lg shadow-brand-500/25 active:scale-[0.98]">
+                        Evaluate Expression
+                    </button>
+                    <div x-show="evalResult !== null" x-transition
+                         class="p-4 rounded-xl"
+                         :class="evalError ? 'bg-red-50 border border-red-200' : 'bg-green-50 border border-green-200'">
+                        <div class="text-xs font-medium uppercase tracking-wider mb-1" :class="evalError ? 'text-red-500' : 'text-green-500'" x-text="evalError ? 'Error' : 'Result'"></div>
+                        <div class="font-mono text-lg font-bold" :class="evalError ? 'text-red-700' : 'text-green-700'" x-text="evalResult"></div>
+                    </div>
+                    <div class="bg-gray-50 rounded-xl p-4">
+                        <div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Quick Examples</div>
+                        <div class="flex flex-wrap gap-2">
+                            <template x-for="ex in exprExamples" :key="ex.expr">
+                                <button @click="evalExpression = ex.expr; evalVariables = ex.vars || ''; evaluateExpression()"
+                                        class="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-mono text-gray-700 hover:bg-brand-50 hover:border-brand-200 hover:text-brand-700 transition">
+                                    <span x-text="ex.label"></span>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Markdown Converter -->
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-emerald-50 to-green-50">
+                    <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+                        <span>📝</span>
+                        <span>Markdown Converter</span>
+                    </h3>
+                    <p class="text-sm text-gray-500 mt-0.5">Test the MarkdownParser class interactively</p>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Markdown Input</label>
+                        <textarea x-model="mdInput" rows="6"
+                                  placeholder="# Hello World&#10;This is **bold** and *italic*.&#10;&#10;- List item 1&#10;- List item 2"
+                                  class="w-full px-4 py-3 border border-gray-200 rounded-xl font-mono text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition resize-none"></textarea>
+                    </div>
+                    <button @click="convertMarkdown()"
+                            class="w-full px-4 py-3 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-xl font-medium text-sm hover:from-emerald-600 hover:to-green-700 transition shadow-lg shadow-emerald-500/25 active:scale-[0.98]">
+                        Convert to HTML
+                    </button>
+                    <div x-show="mdResult" x-transition>
+                        <div class="flex items-center space-x-2 mb-2">
+                            <button @click="mdViewMode = 'preview'" :class="mdViewMode === 'preview' ? 'bg-gray-200' : 'bg-gray-50'" class="px-3 py-1 rounded-md text-xs font-medium transition">Preview</button>
+                            <button @click="mdViewMode = 'html'" :class="mdViewMode === 'html' ? 'bg-gray-200' : 'bg-gray-50'" class="px-3 py-1 rounded-md text-xs font-medium transition">HTML</button>
+                        </div>
+                        <div x-show="mdViewMode === 'preview'" class="p-4 bg-white border border-gray-200 rounded-xl prose prose-sm max-w-none" x-html="mdResult"></div>
+                        <pre x-show="mdViewMode === 'html'" class="p-4 bg-gray-900 text-green-400 rounded-xl text-xs font-mono overflow-x-auto"><code x-text="mdResult"></code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CSV Parser -->
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden lg:col-span-2">
+                <div class="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-amber-50 to-orange-50">
+                    <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+                        <span>📊</span>
+                        <span>CSV Parser</span>
+                    </h3>
+                    <p class="text-sm text-gray-500 mt-0.5">Test the CsvParser class interactively</p>
+                </div>
+                <div class="p-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1.5">CSV Input</label>
+                                <textarea x-model="csvInput" rows="6"
+                                          placeholder="Name,Age,City&#10;Alice,30,New York&#10;Bob,25,London&#10;Charlie,35,Tokyo"
+                                          class="w-full px-4 py-3 border border-gray-200 rounded-xl font-mono text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition resize-none"></textarea>
+                            </div>
+                            <div class="flex items-center space-x-4">
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" x-model="csvHasHeader" class="w-4 h-4 text-brand-600 rounded border-gray-300 focus:ring-brand-500">
+                                    <span class="text-sm text-gray-700">Has Header</span>
+                                </label>
+                            </div>
+                            <button @click="parseCsv()"
+                                    class="w-full px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl font-medium text-sm hover:from-amber-600 hover:to-orange-700 transition shadow-lg shadow-amber-500/25 active:scale-[0.98]">
+                                Parse CSV
+                            </button>
+                        </div>
+                        <div x-show="csvResult" x-transition>
+                            <div class="text-sm font-medium text-gray-700 mb-2">
+                                Parsed: <span class="text-brand-600" x-text="csvResult?.rowCount || 0"></span> rows, 
+                                <span class="text-brand-600" x-text="csvResult?.columnCount || 0"></span> columns
+                            </div>
+                            <div class="overflow-x-auto border border-gray-200 rounded-xl">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead x-show="csvResult?.headers?.length > 0" class="bg-gray-50">
+                                        <tr>
+                                            <template x-for="(h, hi) in csvResult?.headers || []" :key="'h' + hi">
+                                                <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider" x-text="h"></th>
+                                            </template>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-100">
+                                        <template x-for="(row, ri) in csvResult?.rows || []" :key="ri">
+                                            <tr class="hover:bg-gray-50">
+                                                <template x-for="(field, fi) in row.fields || []" :key="fi">
+                                                    <td class="px-4 py-2 text-sm text-gray-700 font-mono" x-text="field"></td>
+                                                </template>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Source Code Tab -->
+    <div x-show="activeTab === 'source'" x-transition>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- File List -->
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-100">
+                    <h3 class="text-lg font-semibold text-gray-900">Source Files</h3>
+                </div>
+                <div class="divide-y divide-gray-50">
+                    <template x-for="file in analysis.sourceFiles || []" :key="file.name">
+                        <button @click="selectedFile = file"
+                                class="w-full px-6 py-3 flex items-center justify-between hover:bg-gray-50 transition group"
+                                :class="selectedFile?.fileName === file.name && 'bg-brand-50 border-r-2 border-brand-500'">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold"
+                                     :class="getFileCoverage(file) === 100 ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'">
+                                    C#
+                                </div>
+                                <div class="text-left">
+                                    <div class="text-sm font-medium text-gray-900" x-text="file.className"></div>
+                                    <div class="text-xs text-gray-400" x-text="file.methods?.length + ' methods'"></div>
+                                </div>
+                            </div>
+                            <span class="text-xs px-2 py-0.5 rounded-full font-medium"
+                                  :class="getFileCoverage(file) === 100 ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'"
+                                  x-text="getFileCoverage(file).toFixed(0) + '%'"></span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+
+            <!-- File Detail -->
+            <div class="lg:col-span-2">
+                <template x-if="selectedFile">
+                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900" x-text="selectedFile.className"></h3>
+                                <p class="text-sm text-gray-500 font-mono" x-text="selectedFile.name"></p>
+                            </div>
+                            <div class="flex items-center space-x-4 text-sm text-gray-500">
+                                <span x-text="selectedFile.lineCount + ' lines'"></span>
+                                <span x-text="selectedFile.methods?.length + ' methods'"></span>
+                            </div>
+                        </div>
+                        <div class="divide-y divide-gray-50">
+                            <template x-for="(method, mi) in selectedFile.methods || []" :key="'sel' + mi">
+                                <div class="px-6 py-3 flex items-center justify-between hover:bg-gray-50">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-2 h-2 rounded-full" :class="method.hasTest ? 'bg-green-500' : 'bg-red-500'"></div>
+                                        <div>
+                                            <code class="text-sm font-mono text-gray-900" x-text="method.name + '()'"></code>
+                                            <div class="flex items-center space-x-2 mt-0.5">
+                                                <span class="text-xs text-gray-400" x-text="method.returnType"></span>
+                                                <span x-show="method.isStatic" class="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded font-medium">static</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <span x-show="method.hasTest" class="text-xs text-green-600 font-mono bg-green-50 px-2 py-1 rounded" x-text="method.testName"></span>
+                                        <span x-show="!method.hasTest" class="text-xs text-red-500 font-medium">No test</span>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+                <template x-if="!selectedFile">
+                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
+                        <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                        <p class="text-gray-500">Select a file to view details</p>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tests Tab -->
+    <div x-show="activeTab === 'tests'" x-transition>
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">Test Suite Overview</h3>
+                    <p class="text-sm text-gray-500 mt-0.5">All test files and their methods</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="px-3 py-1.5 bg-green-50 text-green-700 rounded-lg text-sm font-medium">
+                        ✓ <span x-text="stats.totalTests"></span> tests
+                    </span>
+                </div>
+            </div>
+            <div class="divide-y divide-gray-100">
+                <template x-for="file in analysis.testFiles || []" :key="file.name">
+                    <div class="px-6 py-4" x-data="{ open: false }">
+                        <button @click="open = !open" class="flex items-center justify-between w-full">
+                            <div class="flex items-center space-x-3">
+                                <svg class="w-5 h-5 text-gray-400 transition-transform" :class="open && 'rotate-90'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                <div class="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                </div>
+                                <div class="text-left">
+                                    <div class="font-mono text-sm font-semibold text-gray-900" x-text="file.className"></div>
+                                    <div class="text-xs text-gray-400" x-text="file.name"></div>
+                                </div>
+                            </div>
+                            <span class="px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm font-medium" x-text="file.testMethods?.length + ' tests'"></span>
+                        </button>
+                        <div x-show="open" x-transition class="mt-3 ml-14 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                            <template x-for="(method, mi) in file.testMethods || []" :key="file.className + mi">
+                                <div class="flex items-center space-x-2 px-3 py-1.5 bg-gray-50 rounded-lg">
+                                    <span class="w-1.5 h-1.5 bg-green-500 rounded-full flex-shrink-0"></span>
+                                    <span class="font-mono text-xs text-gray-700 truncate" x-text="method"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- Footer -->
+<footer class="border-t border-gray-200 mt-12 py-8 bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
+            <div class="flex items-center space-x-2 text-sm text-gray-500">
+                <span class="font-semibold text-gray-700">AIGenUT</span>
+                <span>·</span>
+                <span>AI-Assisted Unit Test Generation Demo</span>
+            </div>
+            <div class="flex items-center space-x-4 text-sm text-gray-400">
+                <span>Built with .NET 8 + NUnit 4</span>
+                <span>·</span>
+                <span>Powered by GitHub Copilot</span>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script src="/js/app.js"></script>
+</body>
+</html>
